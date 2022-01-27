@@ -1,0 +1,27 @@
+/* Events from Inovelli Switches look like this: */
+{
+    "event_type": "zwave_js_value_notification",
+    "data": {
+        "domain": "zwave_js",
+        "node_id": 43,
+        "home_id": 3638438645,
+        "endpoint": 0,
+        "device_id": "71a567928f2f9e770339e02b700a1958",
+        "command_class": 91,
+        "command_class_name": "Central Scene",
+        "label": "Scene 001",
+        "property": "scene",
+        "property_name": "scene",
+        "property_key": "001",
+        "property_key_name": "001",
+        "value": "KeyPressed2x",
+        "value_raw": 3
+    },
+    "origin": "LOCAL",
+    "time_fired": "2022-01-26T05:22:58.423166+00:00",
+    "context": {
+        "id": "1e5dab48bc5309e23a6fd3966ca5390c",
+        "parent_id": null,
+        "user_id": null
+    }
+}

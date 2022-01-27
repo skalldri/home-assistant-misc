@@ -1,0 +1,117 @@
+blueprint:
+  name: Inovelli Switch Events
+  description: Take Action(s) when an Inovelli Switch is pressed
+  domain: automation
+  input:
+    # Pick a switch device to detect presses from
+    input_device:
+      name: Source Switch
+      selector:
+        device:
+          # Only works with zwave_js integration
+          integration: zwave_js
+          # Only get Inovelli devices. Would be nice to also
+          # filter out the correct models... but close enough.
+          manufacturer: Inovelli
+    # Pick which button should be pressed
+    button:
+      name: Button
+      description: Which button should be pressed to take this action
+      default: Up
+      selector:
+        select:
+          options:
+            - Up
+            - Down
+            - Config
+    # Pick how may presses to listen for
+    number_of_presses:
+      name: Number of Presses
+      description: How many times does the button have to be pressed (quickly) to take the action
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 3
+    # What actions to take in response to the event
+    actions_to_take:
+      name: Actions
+      selector:
+        action:
+    # If this should write debug logs
+    debug_logs:
+      name: Enable Debug Logs
+      default: false
+      selector:
+        boolean:
+
+mode: single
+max_exceeded: silent
+
+variables:
+  # Store the input values as variables so we can use them in elements
+  input_device: !input input_device
+  button: !input button
+  number_of_presses: !input number_of_presses
+  actions_to_take: !input actions_to_take
+  debug_logs: !input debug_logs
+
+  key_press_mapping:
+    "1": KeyPressed
+    "2": KeyPressed2x
+    "3": KeyPressed3x
+
+  button_mapping:
+    Config: "003"
+    Up: "002"
+    Down: "001"
+
+  zwave_node_id: |
+    {## Generally, first entry should be format 3638438645-41-798:1:1,
+        the second one will be 3638438645-41. Just in case, handle both formats. ##}
+    {%- set zwave_node_id = (device_attr(input_device, 'identifiers')|list).1.1 %}
+    {## The format is 3638438645-41-798:1:1 ##}
+    {%- if ":" in zwave_node_id %}
+      {% set zwave_node_id = zwave_node_id.split(":")[0] %}
+      {## The format is now 3638438645-41-798 ##}
+      {% set zwave_node_id = zwave_node_id.split("-")[1] %}
+    {## The format is 3638438645-41 ##}
+    {%- elif "-" in zwave_node_id %}
+      {% set zwave_node_id = zwave_node_id.split("-")[1] %}
+    {%- endif %}
+    {{ zwave_node_id }}
+
+  zwave_property_key: |
+    {{ button_mapping[button|default(Up)] }}
+
+  zwave_value: |
+    {{ key_press_mapping[number_of_presses|default(1)|title] }}
+
+trigger:
+  platform: event
+  event_type: zwave_js_value_notification
+  id: zwave
+
+condition:
+  - condition: template
+    value_template: '{{ (trigger.event.data["node_id"] == zwave_node_id) and (trigger.event.data["value"] == zwave_value) and (trigger.event.data["property_key"] == zwave_property_key) }}'
+
+action:
+  # Seems to be the only way to propagate the "actions_to_take" input
+  # into the action... but hey, if it works! The linter complains, but HA is fine with this.
+  - choose:
+    default: !input actions_to_take
+  # Print debug logs if enabled
+  - choose:
+      conditions:
+        - condition: template
+          value_template: "{{ debug_logs == true }}"
+      sequence:
+        - service: system_log.write
+          data:
+            level: debug
+            message: >-
+              Notification received from from Inovelli switch. 
+              ZWave Node ID: {{ zwave_node_id }}
+              Button: {{ button }}
+              Number of Presses: {{ number_of_presses }}
